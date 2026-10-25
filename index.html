@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>外匯風控計算機</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    background: #f5f5f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 16px;
+    color: #1a1a1a;
+    letter-spacing: -0.01em;
+  }
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .section {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .row:last-child { margin-bottom: 0; }
+  label {
+    font-size: 13px;
+    color: #555;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+  input[type=number], select {
+    flex: 1;
+    font-size: 13px;
+    padding: 8px 10px;
+    background: #f7f7f5;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type=number]:focus, select:focus {
+    border-color: #378ADD;
+    background: #fff;
+  }
+  .order-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .ot-btn {
+    flex: 1;
+    min-width: 90px;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    background: #f7f7f5;
+    color: #555;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .ot-btn:hover { background: #eee; }
+  .ot-btn.active-buy { background: #E6F1FB; border-color: #378ADD; color: #0C447C; }
+  .ot-btn.active-sell { background: #FCEBEB; border-color: #E24B4A; color: #791F1F; }
+  .divider { height: 1px; background: rgba(0,0,0,0.07); margin: 12px 0; }
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .metric {
+    background: #f7f7f5;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .metric-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 600; }
+  .metric-value.buy { color: #185FA5; }
+  .metric-value.sell { color: #A32D2D; }
+  .metric-value.warn { color: #854F0B; }
+  .metric-value.ok { color: #3B6D11; }
+  .calc-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: #378ADD;
+    color: #fff;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .calc-btn:hover { background: #185FA5; }
+  .calc-btn:active { transform: scale(0.98); }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #666;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row span:last-child { font-weight: 500; color: #1a1a1a; }
+  #symbolInfo { font-size: 12px; color: #888; padding: 4px 0 2px; }
+  .max-loss-display { font-size: 13px; color: #378ADD; font-weight: 500; white-space: nowrap; }
+  .pips-display { font-size: 12px; color: #aaa; min-width: 55px; text-align: right; white-space: nowrap; }
+  .rr-bar {
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .rr-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  #resultSection { display: none; }
+  .result-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #E6F1FB;
+    color: #0C447C;
+  }
+  .badge.sell { background: #FCEBEB; color: #791F1F; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #e0e0e0; }
+    h1 { color: #e0e0e0; }
+    .section { background: #2a2a2a; border-color: rgba(255,255,255,0.1); }
+    .section-title { color: #888; }
+    label { color: #aaa; }
+    input[type=number], select {
+      background: #333;
+      border-color: rgba(255,255,255,0.12);
+      color: #e0e0e0;
+    }
+    input[type=number]:focus, select:focus { background: #3a3a3a; }
+    .ot-btn { background: #333; border-color: rgba(255,255,255,0.12); color: #aaa; }
+    .ot-btn:hover { background: #444; }
+    .metric { background: #333; }
+    .metric-label { color: #888; }
+    .info-row { color: #aaa; border-color: rgba(255,255,255,0.06); }
+    .info-row span:last-child { color: #e0e0e0; }
+    #symbolInfo { color: #888; }
+    .max-loss-display { color: #5aadff; }
+    .pips-display { color: #666; }
+    .rr-bar { background: #333; }
+    .divider { background: rgba(255,255,255,0.07); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>外匯風控計算機</h1>
+
+  <div class="section">
+    <div class="section-title">帳戶設定</div>
+    <div class="row">
+      <label>本金 (USD)</label>
+      <input type="number" id="capital" value="10000" min="100" step="100">
+    </div>
+    <div class="row">
+      <label>最大虧損 %</label>
+      <input type="number" id="riskPct" value="2" min="0.1" max="100" step="0.1">
+      <span class="max-loss-display" id="maxLossDisplay">= $200</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">交易標的</div>
+    <div class="row">
+      <label>商品</label>
+      <select id="symbol" onchange="updateSymbolInfo()">
+        <optgroup label="外匯主流">
+          <option value="EURUSD">EURUSD</option>
+          <option value="GBPUSD">GBPUSD</option>
+          <option value="USDJPY">USDJPY</option>
+          <option value="USDCHF">USDCHF</option>
+          <option value="AUDUSD">AUDUSD</option>
+          <option value="USDCAD">USDCAD</option>
+          <option value="NZDUSD">NZDUSD</option>
+          <option value="EURGBP">EURGBP</option>
+        </optgroup>
+        <optgroup label="貴金屬">
+          <option value="XAUUSD">XAUUSD（黃金）</option>
+          <option value="XAGUSD">XAGUSD（白銀）</option>
+        </optgroup>
+        <optgroup label="能源">
+          <option value="WTI">WTI 原油</option>
+          <option value="BRENT">BRENT 原油</option>
+        </optgroup>
+        <optgroup label="指數">
+          <option value="NAS100">NAS100</option>
+          <option value="SPX500">SPX500</option>
+          <option value="US30">US30</option>
+        </optgroup>
+      </select>
+    </div>
+    <div id="symbolInfo"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">訂單類型</div>
+    <div class="order-types" style="margin-bottom:6px;">
+      <div class="ot-btn active-buy" onclick="setOrderType(this,'市場執行')" style="flex:1 1 100%;">市場執行</div>
+    </div>
+    <div class="order-types">
+      <div class="ot-btn" onclick="setOrderType(this,'Buy Limit')">Buy Limit</div>
+      <div class="ot-btn" onclick="setOrderType(this,'Sell Limit')">Sell Limit</div>
+      <div class="ot-btn" onclick="setOrderType(this,'Buy Stop')">Buy Stop</div>
+      <div class="ot-btn" onclick="setOrderType(this,'Sell Stop')">Sell Stop</div>
+    </div>
+    <div id="orderTypeNote" style="font-size:12px;color:#888;">立即以市場價格成交</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">價格設定</div>
+    <div class="row">
+      <label>進場價格</label>
+      <input type="number" id="entryPrice" placeholder="0.00000" step="0.0001">
+    </div>
+    <div class="row">
+      <label>止損 (SL)</label>
+      <input type="number" id="stopLoss" placeholder="0.00000" step="0.0001">
+      <span class="pips-display" id="slPips"></span>
+    </div>
+    <div class="row">
+      <label>獲利 (TP)</label>
+      <input type="number" id="takeProfit" placeholder="0.00000" step="0.0001">
+      <span class="pips-display" id="tpPips"></span>
+    </div>
+    <div class="row">
+      <label>手動手數</label>
+      <input type="number" id="manualLots" placeholder="留空自動計算" step="0.01" min="0.01">
+    </div>
+    <button class="calc-btn" onclick="calculate()">計算</button>
+  </div>
+
+  <div class="section" id="resultSection">
+    <div class="section-title result-title">
+      計算結果
+      <span class="badge" id="dirBadge"></span>
+    </div>
+    <div class="result-grid" id="resultGrid"></div>
+    <div class="divider"></div>
+    <div id="detailRows"></div>
+    <div id="rrBarWrap" style="display:none;margin-top:10px;">
+      <div class="info-row"><span>盈虧比 (R:R)</span><span id="rrLabel"></span></div>
+      <div class="rr-bar"><div class="rr-fill" id="rrFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SYMBOLS = {
+  EURUSD:  { pipSize: 0.0001, pipValue: 10,   contractSize: 100000, spread: 18, digits: 5, unit: 'pips' },
+  GBPUSD:  { pipSize: 0.0001, pipValue: 10,   contractSize: 100000, spread: 20, digits: 5, unit: 'pips' },
+  USDJPY:  { pipSize: 0.01,   pipValue: 9.1,  contractSize: 100000, spread: 27, digits: 3, unit: 'pips' },
+  USDCHF:  { pipSize: 0.0001, pipValue: 11.2, contractSize: 100000, spread: 22, digits: 5, unit: 'pips' },
+  AUDUSD:  { pipSize: 0.0001, pipValue: 10,   contractSize: 100000, spread: 22, digits: 5, unit: 'pips' },
+  USDCAD:  { pipSize: 0.0001, pipValue: 7.5,  contractSize: 100000, spread: 25, digits: 5, unit: 'pips' },
+  NZDUSD:  { pipSize: 0.0001, pipValue: 10,   contractSize: 100000, spread: 30, digits: 5, unit: 'pips' },
+  EURGBP:  { pipSize: 0.0001, pipValue: 13,   contractSize: 100000, spread: 20, digits: 5, unit: 'pips' },
+  XAUUSD:  { pipSize: 0.1,    pipValue: 10,   contractSize: 100,    spread: 41, digits: 2, unit: 'points' },
+  XAGUSD:  { pipSize: 0.001,  pipValue: 5,    contractSize: 5000,   spread: 49, digits: 3, unit: 'points' },
+  WTI:     { pipSize: 0.01,   pipValue: 10,   contractSize: 1000,   spread: 50, digits: 2, unit: 'points' },
+  BRENT:   { pipSize: 0.01,   pipValue: 10,   contractSize: 1000,   spread: 50, digits: 2, unit: 'points' },
+  NAS100:  { pipSize: 1,      pipValue: 1,    contractSize: 1,      spread: 26, digits: 1, unit: 'points' },
+  SPX500:  { pipSize: 0.1,    pipValue: 1,    contractSize: 1,      spread: 19, digits: 1, unit: 'points' },
+  US30:    { pipSize: 1,      pipValue: 1,    contractSize: 1,      spread: 38, digits: 1, unit: 'points' },
+};
+
+const ORDER_NOTES = {
+  '市場執行': '立即以市場價格成交',
+  'Buy Limit': '價格跌到指定價再買入（低買）',
+  'Sell Limit': '價格漲到指定價再賣出（高賣）',
+  'Buy Stop':  '價格漲破指定價才買入（突破買）',
+  'Sell Stop': '價格跌破指定價才賣出（突破賣）',
+};
+
+let currentOrderType = '市場執行';
+
+function setOrderType(el, type) {
+  document.querySelectorAll('.ot-btn').forEach(b => b.className = 'ot-btn');
+  const isBuy = type.toLowerCase().includes('buy') || type === '市場執行';
+  el.classList.add(isBuy ? 'active-buy' : 'active-sell');
+  currentOrderType = type;
+  document.getElementById('orderTypeNote').textContent = ORDER_NOTES[type];
+}
+
+function updateSymbolInfo() {
+  const sym = document.getElementById('symbol').value;
+  const s = SYMBOLS[sym];
+  document.getElementById('symbolInfo').textContent =
+    `點差: ${s.spread} ${s.unit}　合約: ${s.contractSize.toLocaleString()}　每手每 ${s.unit}: $${s.pipValue}`;
+  updatePipDisplay();
+}
+
+function updatePipDisplay() {
+  const sym = document.getElementById('symbol').value;
+  const s = SYMBOLS[sym];
+  const entry = parseFloat(document.getElementById('entryPrice').value) || 0;
+  const sl = parseFloat(document.getElementById('stopLoss').value) || 0;
+  const tp = parseFloat(document.getElementById('takeProfit').value) || 0;
+  if (entry && sl) {
+    const slPips = Math.abs(entry - sl) / s.pipSize;
+    document.getElementById('slPips').textContent = slPips.toFixed(1) + ' ' + s.unit;
+  } else {
+    document.getElementById('slPips').textContent = '';
+  }
+  if (entry && tp) {
+    const tpPips = Math.abs(tp - entry) / s.pipSize;
+    document.getElementById('tpPips').textContent = tpPips.toFixed(1) + ' ' + s.unit;
+  } else {
+    document.getElementById('tpPips').textContent = '';
+  }
+}
+
+['entryPrice', 'stopLoss', 'takeProfit'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updatePipDisplay);
+});
+
+['capital', 'riskPct'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const cap = parseFloat(document.getElementById('capital').value) || 0;
+    const pct = parseFloat(document.getElementById('riskPct').value) || 0;
+    document.getElementById('maxLossDisplay').textContent = '= $' + (cap * pct / 100).toFixed(0);
+  });
+});
+
+function calculate() {
+  const capital = parseFloat(document.getElementById('capital').value);
+  const riskPct = parseFloat(document.getElementById('riskPct').value);
+  const entry = parseFloat(document.getElementById('entryPrice').value);
+  const sl = parseFloat(document.getElementById('stopLoss').value);
+  const tp = parseFloat(document.getElementById('takeProfit').value);
+  const manualLots = parseFloat(document.getElementById('manualLots').value);
+  const sym = document.getElementById('symbol').value;
+  const s = SYMBOLS[sym];
+
+  if (!capital || !riskPct) { alert('請填入本金與最大虧損比例'); return; }
+  if (!entry || !sl) { alert('請填入進場價格與止損價格'); return; }
+
+  const maxLoss = capital * riskPct / 100;
+  const slPips = Math.abs(entry - sl) / s.pipSize;
+  const tpPips = tp ? Math.abs(tp - entry) / s.pipSize : 0;
+
+  if (slPips === 0) { alert('止損距離不能為 0'); return; }
+
+  const recommendedLots = maxLoss / (slPips * s.pipValue);
+  const lots = manualLots || recommendedLots;
+
+  const riskAmount = lots * slPips * s.pipValue;
+  const riskPctActual = riskAmount / capital * 100;
+  const potentialProfit = tpPips ? lots * tpPips * s.pipValue : null;
+  const rr = potentialProfit ? potentialProfit / riskAmount : null;
+  const spreadCost = lots * s.spread * s.pipValue;
+
+  const isBuy = currentOrderType.includes('Buy') || currentOrderType === '市場執行';
+  const dir = isBuy ? 'buy' : 'sell';
+
+  const badge = document.getElementById('dirBadge');
+  badge.textContent = isBuy ? '做多' : '做空';
+  badge.className = 'badge' + (isBuy ? '' : ' sell');
+
+  const grid = document.getElementById('resultGrid');
+  grid.innerHTML = `
+    <div class="metric">
+      <div class="metric-label">建議手數</div>
+      <div class="metric-value ${dir}">${recommendedLots.toFixed(2)} 手</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">最大虧損</div>
+      <div class="metric-value warn">$${riskAmount.toFixed(0)}</div>
+    </div>
+    ${potentialProfit !== null ? `<div class="metric">
+      <div class="metric-label">預期獲利</div>
+      <div class="metric-value ok">$${potentialProfit.toFixed(0)}</div>
+    </div>` : ''}
+    <div class="metric">
+      <div class="metric-label">佔本金比例</div>
+      <div class="metric-value ${riskPctActual > riskPct + 0.1 ? 'warn' : 'ok'}">${riskPctActual.toFixed(2)}%</div>
+    </div>
+  `;
+
+  const dr = document.getElementById('detailRows');
+  dr.innerHTML = `
+    <div class="info-row"><span>止損距離</span><span>${slPips.toFixed(1)} ${s.unit}</span></div>
+    ${tpPips ? `<div class="info-row"><span>獲利距離</span><span>${tpPips.toFixed(1)} ${s.unit}</span></div>` : ''}
+    <div class="info-row"><span>點差成本</span><span>$${spreadCost.toFixed(2)}</span></div>
+    <div class="info-row"><span>每手每 ${s.unit} 價值</span><span>$${s.pipValue}</span></div>
+    <div class="info-row"><span>訂單類型</span><span>${currentOrderType}</span></div>
+    ${manualLots ? `<div class="info-row"><span>手動手數實際風險</span><span>$${riskAmount.toFixed(0)} (${riskPctActual.toFixed(2)}%)</span></div>` : ''}
+  `;
+
+  const rrWrap = document.getElementById('rrBarWrap');
+  if (rr !== null) {
+    rrWrap.style.display = 'block';
+    document.getElementById('rrLabel').textContent = '1 : ' + rr.toFixed(2);
+    const fillPct = Math.min(rr / 3 * 100, 100);
+    const fill = document.getElementById('rrFill');
+    fill.style.width = fillPct + '%';
+    fill.style.background = rr >= 2 ? '#1D9E75' : rr >= 1 ? '#BA7517' : '#E24B4A';
+  } else {
+    rrWrap.style.display = 'none';
+  }
+
+  document.getElementById('resultSection').style.display = 'block';
+  document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+updateSymbolInfo();
+</script>
+</body>
+</html>
