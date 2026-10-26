@@ -206,6 +206,17 @@
       <input type="number" id="riskPct" value="2" min="0.1" max="100" step="0.1">
       <span class="max-loss-display" id="maxLossDisplay">= $200</span>
     </div>
+    <div class="row">
+      <label>槓桿比例</label>
+      <select id="leverage">
+        <option value="50">1:50</option>
+        <option value="100">1:100</option>
+        <option value="200">1:200</option>
+        <option value="400" selected>1:400</option>
+        <option value="500">1:500</option>
+        <option value="1000">1:1000</option>
+      </select>
+    </div>
   </div>
 
   <div class="section">
@@ -390,6 +401,7 @@ function calculate() {
 
   if (slPips === 0) { alert('止損距離不能為 0'); return; }
 
+  const leverage = parseFloat(document.getElementById('leverage').value);
   const recommendedLots = maxLoss / (slPips * s.pipValue);
   const lots = manualLots || recommendedLots;
 
@@ -398,6 +410,10 @@ function calculate() {
   const potentialProfit = tpPips ? lots * tpPips * s.pipValue : null;
   const rr = potentialProfit ? potentialProfit / riskAmount : null;
   const spreadCost = lots * s.spread * s.pipValue;
+
+  const marginRequired = (lots * s.contractSize * entry) / leverage;
+  const marginUsedPct = marginRequired / capital * 100;
+  const freeMargin = capital - marginRequired;
 
   const isBuy = currentOrderType.includes('Buy') || currentOrderType === '市場執行';
   const dir = isBuy ? 'buy' : 'sell';
@@ -430,6 +446,9 @@ function calculate() {
   dr.innerHTML = `
     <div class="info-row"><span>止損距離</span><span>${slPips.toFixed(1)} ${s.unit}</span></div>
     ${tpPips ? `<div class="info-row"><span>獲利距離</span><span>${tpPips.toFixed(1)} ${s.unit}</span></div>` : ''}
+    <div class="info-row"><span>所需保證金</span><span style="color:${marginUsedPct > 50 ? '#854F0B' : '#3B6D11'}">$${marginRequired.toFixed(0)}</span></div>
+    <div class="info-row"><span>保證金使用率</span><span style="color:${marginUsedPct > 50 ? '#854F0B' : '#3B6D11'}">${marginUsedPct.toFixed(1)}%${marginUsedPct > 50 ? ' ⚠️' : ''}</span></div>
+    <div class="info-row"><span>剩餘可用保證金</span><span>$${freeMargin.toFixed(0)}</span></div>
     <div class="info-row"><span>點差成本</span><span>$${spreadCost.toFixed(2)}</span></div>
     <div class="info-row"><span>每手每 ${s.unit} 價值</span><span>$${s.pipValue}</span></div>
     <div class="info-row"><span>訂單類型</span><span>${currentOrderType}</span></div>
